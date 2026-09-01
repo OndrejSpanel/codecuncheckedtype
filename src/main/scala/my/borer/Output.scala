@@ -1,0 +1,95 @@
+/*
+ * Copyright (c) 2019-2026 Mathias Doenitz
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+package my.borer
+
+import my.borer.output.*
+
+import scala.annotation.tailrec
+
+/**
+ * Abstraction over serialization output.
+ *
+ * The implementation can be either mutable or immutable.
+ */
+trait Output { outer =>
+  type Self <: Output // { type Self <: outer.Self } // uncommenting this makes Scala 3 compiler get stuck in the typer
+  type Result
+
+  def writeByte(byte: Byte): Self
+  def writeBytes(a: Byte, b: Byte): Self
+  def writeBytes(a: Byte, b: Byte, c: Byte): Self
+  def writeBytes(a: Byte, b: Byte, c: Byte, d: Byte): Self
+
+  /**
+   * Writes the given 16-bit value to the output using NETWORK BYTE order (i.e. BIG ENDIAN),
+   * independently of the platform's endianess.
+   */
+  def writeShort(value: Short): Self =
+    writeBytes((value >> 8).toByte, value.toByte)
+
+  /**
+   * Writes the given 32-bit value to the output using NETWORK BYTE order (i.e. BIG ENDIAN),
+   * independently of the platform's endianess.
+   */
+  def writeInt(value: Int): Self =
+    writeBytes((value >> 24).toByte, (value >> 16).toByte, (value >> 8).toByte, value.toByte)
+
+  /**
+   * Writes the given 64-bit value to the output using NETWORK BYTE order (i.e. BIG ENDIAN),
+   * independently of the platform's endianess.
+   */
+  def writeLong(value: Long): Self =
+    writeInt((value >> 32).toInt).writeInt(value.toInt).asInstanceOf[Self]
+
+  def writeBytes[Bytes: ByteAccess](bytes: Bytes): Self
+
+  def result(): Result
+}
+
+object Output
+    extends ToByteArrayOutput with ToByteBufferOutput with ToFileOutput with ToOutputStreamOutput with ToUnitOutput:
+
+  // #provider
+  /**
+   * Responsible for providing an Output that produces instances of [[T]].
+   */
+  trait ToTypeProvider[T]:
+    type Out <: Output { type Result = T }
+    def apply(bufferSize: Int, allowBufferCaching: Boolean): Out
+
+  /**
+   * Responsible for providing an Output that outputs into the given value [[T]].
+   */
+  trait ToValueProvider[T]:
+    type Out <: Output { type Result = T }
+    def apply(value: T, bufferSize: Int, allowBufferCaching: Boolean): Out
+
+  // #provider
+
+  extension (underlying: Output)
+    inline def writeAsByte(i: Int): underlying.Self = underlying.writeByte(i.toByte)
+
+    inline def writeAsByte(c: Char): underlying.Self           = underlying.writeByte(c.toByte)
+    inline def writeAsBytes(a: Char, b: Char): underlying.Self = underlying.writeBytes(a.toByte, b.toByte)
+
+    inline def writeAsBytes(a: Char, b: Char, c: Char): underlying.Self =
+      underlying.writeBytes(a.toByte, b.toByte, c.toByte)
+
+    inline def writeAsBytes(a: Char, b: Char, c: Char, d: Char): underlying.Self =
+      underlying.writeBytes(a.toByte, b.toByte, c.toByte, d.toByte)
+
+    def writeStringAsAsciiBytes(s: String): underlying.Self =
+      @tailrec def rec(out: underlying.Self, ix: Int): underlying.Self =
+        s.length - ix match
+          case 0 => out
+          case 1 => writeAsByte(s.charAt(ix))
+          case 2 => writeAsBytes(s.charAt(ix), s.charAt(ix + 1))
+          case 3 => writeAsBytes(s.charAt(ix), s.charAt(ix + 1), s.charAt(ix + 2))
+          case _ => rec(writeAsBytes(s.charAt(ix), s.charAt(ix + 1), s.charAt(ix + 2), s.charAt(ix + 3)), ix + 4)
+      rec(underlying.asInstanceOf[underlying.Self], 0)

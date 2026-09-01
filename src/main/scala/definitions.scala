@@ -1,5 +1,5 @@
-import io.bullet.borer.*
-import io.bullet.borer.derivation.MapBasedCodecs.*
+import my.borer.*
+import my.borer.derivation.MapBasedCodecs.*
 
 sealed trait RootHeightFactor derives Codec.All
 
