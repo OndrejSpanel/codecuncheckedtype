@@ -1,11 +1,7 @@
 import my.borer.*
-import my.borer.derivation.MapBasedCodecs.*
+import my.borer.MapBasedCodecs.*
 
 sealed trait RootHeightFactor derives Codec.All
 
-object RootHeightFactor {
-  def derivedClasses = Schema.listDerivedClasses[RootHeightFactor]
-
+object RootHeightFactor:
   case object Keep extends RootHeightFactor
-
-}
