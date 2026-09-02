@@ -13,10 +13,19 @@ import scala.deriving.*
 import scala.compiletime.*
 import scala.quoted.*
 
+abstract class DerivedAdtEncoder[T] extends AdtEncoder[T]:
+  def writeAdtValue[A](w: Writer, typeId: Long, value: A)(using encoder: Encoder[A]): Writer
+  def writeAdtValue[A](w: Writer, typeId: String, value: A)(using encoder: Encoder[A]): Writer
+
+abstract class DerivedAdtDecoder[T] extends AdtDecoder[T]:
+  def failExpectedTypeId(r: Reader): Nothing
+
 /**
  * Derivation macros for array-based encodings.
  */
-object MapBasedCodecs extends DerivationApi {
+object MapBasedCodecs {
+
+  extension (c: Codec.All.type) inline def derived[A]: Codec.All[A] = Codec.All(deriveAllCodecs[A])
 
   /**
    * Macro that creates an [[Encoder]] for [[T]] provided that
@@ -95,12 +104,6 @@ object MapBasedCodecs extends DerivationApi {
   inline def deriveAllDecoders[T]: Decoder[T] = ${ Macros.allDecoders[T] }
 
   /**
-   * Macro that creates an [[Encoder]] and [[Decoder]] pair for [[T]].
-   * Convenience shortcut for `Codec(deriveEncoder[T], deriveDecoder[T])`.
-   */
-  inline def deriveCodec[T]: Codec[T] = Codec(deriveEncoder[T], deriveDecoder[T])
-
-  /**
    * Macro that creates an [[Encoder]] and [[Decoder]] pair for [[T]] and all direct and indirect sub-types of [[T]].
    * Convenience shortcut for `Codec(deriveAllEncoders[T], deriveAllDecoders[T])`.
    */
@@ -129,7 +132,7 @@ object MapBasedCodecs extends DerivationApi {
             val basicFieldFlags = fields.map(field => fieldEncoders(field.index).exists(isBasicDefaultEncoder))
             val nonBasicFields  = fields.map(field => Option.when(!basicFieldFlags(field.index))(field))
 
-            withVal('{ summonInline[DerivationConfig] }) { derivationConfig =>
+            withVal('{ false }) { derivationConfig =>
               withOptVals {
                 nonBasicFields.map {
                   _.flatMap { field =>
@@ -173,7 +176,7 @@ object MapBasedCodecs extends DerivationApi {
                                 expr match
                                   case Some(x) =>
                                     '{
-                                      $derivationConfig.encodeCaseClassMemberDefaultValues
+                                      $derivationConfig
                                         || $fieldValue != $x
                                         || {
                                         $decCount; false

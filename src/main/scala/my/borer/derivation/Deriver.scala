@@ -81,7 +81,7 @@ abstract private[derivation] class Deriver[F[_]: Type, T: Type, Q <: Quotes](usi
   import q.reflect.*
 
   val theT: TypeRepr    = TypeRepr.of[T]
-  val keyAnno: TypeRepr = TypeRepr.of[my.borer.derivation.key]
+  val keyAnno: TypeRepr = TypeRepr.of[Nothing]
   val theTname: String  = theT.show(using Printer.TypeReprShortCode)
 
   sealed trait FieldType {

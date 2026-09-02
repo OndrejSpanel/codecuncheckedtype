@@ -8,6 +8,4 @@ object RootHeightFactor {
 
   case object Keep extends RootHeightFactor
 
-  case class Factor() extends RootHeightFactor
-
 }

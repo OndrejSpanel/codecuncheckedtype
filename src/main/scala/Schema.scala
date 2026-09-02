@@ -1,7 +1,5 @@
 import scala.quoted.*
 
-def surfaceOf[T] = ???
-
 object Schema {
   inline def listDerivedClasses[T]: List[Nothing] = ${ listDerivedClassesImpl[T] }
 
@@ -10,7 +8,7 @@ object Schema {
 
     Expr.ofList(TypeRepr.of[T].typeSymbol.children.map { child =>
       child.typeRef.asType match
-        case '[t] => '{ surfaceOf[t] }
+        case '[t] => '{ ??? }
     })
   }
 }

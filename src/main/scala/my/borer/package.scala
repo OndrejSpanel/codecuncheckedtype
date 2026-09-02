@@ -10,4 +10,4 @@ package my
 
 package object borer:
 
-  type Reader = InputReader[_ <: Reader.Config]
+  type Reader = InputReader[?]
